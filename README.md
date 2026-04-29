@@ -4,7 +4,7 @@ A way to give a vulnerability an identifier the moment you find it, without aski
 
 The target is open source libraries: code published to a package registry and pulled in as a dependency by other projects. The construction works for anything with a package URL and a file, but the use cases below assume a library with many downstream users rather than an application that is deployed and run.
 
-See [SPEC.md](SPEC.md) for the construction. This document is the why.
+See [SPEC.md](SPEC.md) for the details. 
 
 ## The problem
 
