@@ -1,0 +1,5 @@
+{
+  "name": "acme-greeter",
+  "version": "1.0.1",
+  "main": "lib/greet.js"
+}
