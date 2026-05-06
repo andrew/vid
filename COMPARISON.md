@@ -1,9 +1,9 @@
 # v1 file-hash vs v2 function-bytes vs v2 function-AST
 
-Two exploratory branches narrow the hashed unit from the sink file to the sink function, located by tree-sitter using the grammars from `github.com/odvcencio/gotreesitter` and the function-node conventions from `github.com/git-pkgs/outline`.
+Two exploratory branches narrow the hashed unit from the sink file to the sink function, located by tree-sitter using the grammars from [github.com/odvcencio/gotreesitter](https://github.com/odvcencio/gotreesitter) and the function-node conventions from [github.com/git-pkgs/outline](https://github.com/git-pkgs/outline).
 
-- `vid2-function-bytes` hashes the raw byte range of the enclosing function node. Preimage `purl \n gitoid(func-bytes)`.
-- `vid2-function-ast` hashes a canonical S-expression of the function subtree (named children only, comments dropped, leaf text quoted) and pins the grammar by hash. Preimage `purl \n sha256(grammar-blob) \n gitoid(sexp)`.
+- [`vid2-function-bytes`](https://github.com/andrew/VID/tree/vid2-function-bytes) hashes the raw byte range of the enclosing function node. Preimage `purl \n gitoid(func-bytes)`. See [SPEC-FUNCTION.md](https://github.com/andrew/VID/blob/vid2-function-bytes/SPEC-FUNCTION.md) and [cmd/vid2](https://github.com/andrew/VID/tree/vid2-function-bytes/cmd/vid2).
+- [`vid2-function-ast`](https://github.com/andrew/VID/tree/vid2-function-ast) hashes a canonical S-expression of the function subtree (named children only, comments dropped, leaf text quoted) and pins the grammar by hash. Preimage `purl \n sha256(grammar-blob) \n gitoid(sexp)`. See [SPEC-FUNCTION.md](https://github.com/andrew/VID/blob/vid2-function-ast/SPEC-FUNCTION.md) and [cmd/vid2](https://github.com/andrew/VID/tree/vid2-function-ast/cmd/vid2).
 
 Each branch carries a `cmd/vid2` Go tool, tests, a `SPEC-FUNCTION.md`, and extra example releases not present on `main`.
 
@@ -19,7 +19,7 @@ Recommendation: ship v2-bytes as the function-scoped construction, keep v1 as th
 
 ## Results
 
-Five `acme-greeter` releases. 1.0.0, 1.1.0, 1.2.0 are on `main`; 1.0.1 (an unrelated `version()` helper appended below `greet`) is on the `vid2-function-bytes` branch; 1.0.2 (the body of `greet` reindented with a comment added) is on the `vid2-function-ast` branch. The sink is the `exec` call inside `greet`.
+Five `acme-greeter` releases. [1.0.0](https://github.com/andrew/VID/blob/main/examples/acme-greeter-1.0.0/lib/greet.js), [1.1.0](https://github.com/andrew/VID/blob/main/examples/acme-greeter-1.1.0/lib/greet.js), and [1.2.0](https://github.com/andrew/VID/blob/main/examples/acme-greeter-1.2.0/lib/greet.js) are on `main`; [1.0.1](https://github.com/andrew/VID/blob/vid2-function-bytes/examples/acme-greeter-1.0.1/lib/greet.js) (an unrelated `version()` helper appended below `greet`) is on the `vid2-function-bytes` branch; [1.0.2](https://github.com/andrew/VID/blob/vid2-function-ast/examples/acme-greeter-1.0.2/lib/greet.js) (the body of `greet` reindented with a comment added) is on the `vid2-function-ast` branch. The sink is the `exec` call inside `greet`.
 
 | ver   | change from 1.0.0                          | v1 (file)    | v2 bytes     | v2 AST       |
 |-------|--------------------------------------------|--------------|--------------|--------------|
