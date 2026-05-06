@@ -18,40 +18,60 @@ func TestVID1Vector(t *testing.T) {
 	}
 }
 
-func TestEnclosingFunctionJS(t *testing.T) {
-	src := []byte("const x = 1;\n\nfunction greet(name) {\n  exec('echo ' + name);\n}\n\nconst y = 2;\n")
-	fn, lang, err := enclosingFunction(src, "a.js", 4)
+func sexpAt(t *testing.T, src, filename string, line int) string {
+	t.Helper()
+	loc, err := enclosingFunction([]byte(src), filename, line)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lang != "javascript" {
-		t.Fatalf("lang: got %s", lang)
-	}
-	want := "function greet(name) {\n  exec('echo ' + name);\n}"
-	if string(fn) != want {
-		t.Fatalf("func: got %q want %q", fn, want)
+	return canonicalSexp(loc.node, loc.lang, loc.src)
+}
+
+func TestSexpWhitespaceInvariant(t *testing.T) {
+	a := sexpAt(t, "function f(x) {\n  return bad(x);\n}\n", "a.js", 2)
+	b := sexpAt(t, "function f(x){return bad(x);}", "a.js", 1)
+	if a != b {
+		t.Fatalf("whitespace changed sexp:\n%s\n%s", a, b)
 	}
 }
 
-func TestEnclosingFunctionStableAcrossFileEdits(t *testing.T) {
-	a := []byte("function f() {\n  bad();\n}\n")
-	b := []byte("// added comment\nconst k = 1;\n\nfunction f() {\n  bad();\n}\n\nfunction g() {}\n")
-	fa, _, err := enclosingFunction(a, "x.js", 2)
-	if err != nil {
-		t.Fatal(err)
+func TestSexpCommentInvariant(t *testing.T) {
+	a := sexpAt(t, "function f(x) {\n  return bad(x);\n}\n", "a.js", 2)
+	b := sexpAt(t, "function f(x) {\n  // careful here\n  return bad(x);\n}\n", "a.js", 3)
+	if a != b {
+		t.Fatalf("comment changed sexp:\n%s\n%s", a, b)
 	}
-	fb, _, err := enclosingFunction(b, "x.js", 5)
-	if err != nil {
-		t.Fatal(err)
+}
+
+func TestSexpStableAcrossFileEdits(t *testing.T) {
+	a := sexpAt(t, "function f() {\n  bad();\n}\n", "x.js", 2)
+	b := sexpAt(t, "const k = 1;\n\nfunction f() {\n  bad();\n}\n\nfunction g() {}\n", "x.js", 4)
+	if a != b {
+		t.Fatalf("unrelated edit changed sexp:\n%s\n%s", a, b)
 	}
-	if gitoid(fa) != gitoid(fb) {
-		t.Fatalf("function gitoid changed across unrelated file edits:\n%q\n%q", fa, fb)
+}
+
+func TestSexpDistinguishesContent(t *testing.T) {
+	a := sexpAt(t, "function f() { exec('a'); }", "x.js", 1)
+	b := sexpAt(t, "function f() { exec('b'); }", "x.js", 1)
+	if a == b {
+		t.Fatalf("different string literals produced same sexp: %s", a)
+	}
+}
+
+func TestGrammarHashDeterministic(t *testing.T) {
+	a := grammarHash("javascript")
+	b := grammarHash("javascript")
+	if a != b || len(a) != 64 {
+		t.Fatalf("grammar hash unstable or wrong length: %s / %s", a, b)
+	}
+	if a == grammarHash("ruby") {
+		t.Fatalf("javascript and ruby grammar hashes collide")
 	}
 }
 
 func TestNoEnclosingFunction(t *testing.T) {
-	src := []byte("const x = 1;\n")
-	_, _, err := enclosingFunction(src, "a.js", 1)
+	_, err := enclosingFunction([]byte("const x = 1;\n"), "a.js", 1)
 	if err == nil {
 		t.Fatal("expected error for top-level statement")
 	}
