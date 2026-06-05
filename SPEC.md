@@ -121,28 +121,28 @@ The minimist npm package at version 1.2.2 contains the function `setKey` in `ind
 
 ```
 function bytes = src[node.StartByte:node.EndByte] for the function_declaration node spanning lines 69-87
-funcoid        = 0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
+funcoid        = fc9cbcca1f66640a92003ac2eb5a8a1665a15d6eed5af2124dce8359d5466dd0
 preimage       = funcoid                  (single sink, function mode)
 VID            = VID-yssz-i3ln-4ob6-z2fx-3rpt-jve3
 ```
 
 ### Multi-sink vector
 
-Two sinks in two different functions of two different files, each resolving in function mode to a distinct funcoid. With
+[examples/CVE-2014-0160](examples/CVE-2014-0160) (Heartbleed) is a two-sink fixture: the DTLS heartbeat handler `dtls1_process_heartbeat` in `ssl/d1_both.c` at line 1455 and the TLS heartbeat handler `tls1_process_heartbeat` in `ssl/t1_lib.c` at line 2554. Each resolves in function mode:
 
 ```
-oid_a = 0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
-oid_b = 328974138b111b60695089a2962314cfc99540f91660d7313bc6affbb2698632
+oid_dtls = 18498153b671a2e767ec5abb0190c111f6965ed28cc374f7beeaac16d75af286
+oid_tls  = d0bf5dba7fec4dabb6f6ce1b12b7f5c79ca13d9921f266512a049aa17f6ed3ed
 ```
 
-the sorted, deduped, newline-joined preimage is
+The sorted, deduped, newline-joined preimage is
 
 ```
-0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
-328974138b111b60695089a2962314cfc99540f91660d7313bc6affbb2698632
+18498153b671a2e767ec5abb0190c111f6965ed28cc374f7beeaac16d75af286
+d0bf5dba7fec4dabb6f6ce1b12b7f5c79ca13d9921f266512a049aa17f6ed3ed
 ```
 
-since `0c...` sorts before `32...`, and the resulting VID is `VID-u4i5-mkeq-3wf7-xnaj-wqwc-yphg`.
+since `18...` sorts before `d0...`, and the resulting VID is `VID-yqay-acdk-fxsp-43nl-47bv-lylk`. Passing the two sinks to the CLI in either order produces the same string.
 
 ## Properties
 

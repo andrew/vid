@@ -8,6 +8,27 @@ The target is open source libraries pulled in as dependencies by other projects.
 - [examples/](examples/): real advisory fixtures used as the test corpus
 - [FAQ.md](FAQ.md): common questions
 
+## Install
+
+    go install github.com/andrew/VID/cmd/vid@latest
+
+The CLI takes one or more `file:line` arguments and prints the VID to stdout:
+
+    $ vid examples/GHSA-vh95-rmgr-6w4m/vuln.js:73
+    VID-yssz-i3ln-4ob6-z2fx-3rpt-jve3
+
+A VID is the literal string `VID-` followed by six groups of four lowercase base32 characters separated by hyphens, 33 characters in total. Multiple sinks combine into one multi-sink VID, order-independent:
+
+    $ vid examples/CVE-2014-0160/_vuln_dtls.c:1455 examples/CVE-2014-0160/_vuln_tls.c:2554
+    VID-yqay-acdk-fxsp-43nl-47bv-lylk
+
+Setting `VID_DEBUG=1` prints the preimage and per-sink mode, language, and OID to stderr:
+
+    $ VID_DEBUG=1 vid examples/GHSA-vh95-rmgr-6w4m/vuln.js:73
+    VID-yssz-i3ln-4ob6-z2fx-3rpt-jve3
+    preimage: fc9cbcca1f66640a92003ac2eb5a8a1665a15d6eed5af2124dce8359d5466dd0
+    sink examples/GHSA-vh95-rmgr-6w4m/vuln.js:73  mode=function  lang=javascript  oid=fc9cbcca1f66640a92003ac2eb5a8a1665a15d6eed5af2124dce8359d5466dd0
+
 ## The problem
 
 Finding vulnerabilities in open source used to be slow, skilled work. A researcher might spend a week on one library and come away with one good bug, and the systems built around that pace (report it privately to the maintainer, wait for a fix, request a CVE number, publish an advisory) assumed findings were rare and each one got individual attention.
