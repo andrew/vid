@@ -28,7 +28,11 @@ If the file extension maps to a supported language, the source bytes are parsed 
 
     sha256("blob " <bytelen> 0x00 <function_bytes>)
 
-expressed as 64 lowercase hex characters. This is the construction git uses for blob object IDs and that OmniBOR standardises for content-addressed software artefacts. The hash is over the literal bytes of the function range, with no normalisation: whitespace, comments, line endings, and identifier names all enter the hash as they appear in the source.
+expressed as 64 lowercase hex characters. This is the construction git uses for blob object IDs and that OmniBOR standardises for content-addressed software artefacts.
+
+The hash is over the literal bytes of the function range, with no normalisation: whitespace, comments, line endings, and identifier names all enter the hash as they appear in the source.
+
+The exact value of `sink_line` within the function does not affect the OID. The line only determines which function the ancestor walk lands in; the OID is computed over the bytes of that function. Two sinks at different lines of the same function produce the same OID, which is the property the combining step (below) relies on for deduplication.
 
 ### File fallback
 
@@ -40,11 +44,15 @@ The encoding is the same 64-character lowercase hex, and the fallback ensures th
 
 ### Combining sinks into a VID
 
-Given N OIDs from N sinks, the implementation sorts the OIDs lexicographically by byte (identical to ASCII sort, since OIDs are lowercase hex), removes consecutive duplicates so that two sinks resolving to the same function or to identical bytes across files contribute one OID rather than several, and joins the resulting OIDs with `\n` (0x0A) as a single ASCII string. That string is the *preimage*. The VID is then
+Given N OIDs from N sinks, the implementation sorts the OIDs lexicographically by byte (identical to ASCII sort, since OIDs are lowercase hex) and removes consecutive duplicates. Two sinks resolving to the same function, or to identical bytes across files, contribute one OID rather than several.
+
+The resulting OIDs are joined with `\n` (0x0A) as a single ASCII string. That string is the *preimage*. The VID is then
 
     sha256(preimage)[:15]
 
-encoded in lowercase base32 (RFC 4648 alphabet `a`-`z`, `2`-`7`, no padding) producing 24 characters, broken into six groups of four with `-` separators, and prefixed with `VID-`. The single-sink case falls out as n=1: the preimage is just the one OID as a 64-character hex string, and the resulting VID identifies that one sink.
+encoded in lowercase base32 (RFC 4648 alphabet `a`-`z`, `2`-`7`, no padding) producing 24 characters, broken into six groups of four with `-` separators, and prefixed with `VID-`.
+
+The single-sink case falls out as n=1: the preimage is just the one OID as a 64-character hex string, and the resulting VID identifies that one sink. Two sinks at different lines of the same function are also the n=1 case after deduplication.
 
 ## Function-boundary detection
 
@@ -152,15 +160,29 @@ Two parties holding the same function bytes compute the same VID. The constructi
 
 The VID is stable across file renames and moves (only the bytes enter the hash), unrelated edits elsewhere in the file (the function path hashes only the function range), changes to per-package metadata (not an input), and changes to which package the file ships in (the same vulnerable function copied into many packages produces one VID matching every copy).
 
-The VID changes when any byte inside the function range changes, including whitespace, comments, renamed locals, reformatter passes, line-ending changes, or `git autocrlf` translations on cross-platform checkouts. It also changes when the function is moved to a file in a language with no bundled grammar, because the construction would shift from the function path to the file fallback and hash a different range of bytes. The pinned tree-sitter grammar version can in principle change the byte range it reports for a given function, which would also change the VID, though boundary detection is the most stable property of these grammars in practice.
+The VID changes when any byte inside the function range changes, including whitespace, comments, renamed locals, reformatter passes, line-ending changes, or `git autocrlf` translations on cross-platform checkouts.
+
+It also changes when the function is moved to a file in a language with no bundled grammar, because the construction would shift from the function path to the file fallback and hash a different range of bytes.
+
+The pinned tree-sitter grammar version can in principle change the byte range it reports for a given function, which would also change the VID. Boundary detection is the most stable property of these grammars in practice, but the test corpus does not yet measure cross-grammar boundary drift directly.
 
 ### Collision resistance
 
-Truncating the SHA-256 digest to 120 bits leaves a collision-finding work factor of about 2^60 and a preimage-finding work factor of about 2^120 against arbitrary inputs. Accidental collision between unrelated functions is not a practical concern at any plausible corpus size. Collision against a *known* target is cheaper: someone who suspects which package and version a VID refers to can hash every function in that package and check matches, and for popular libraries the candidate space is small and fully public. A published VID is therefore closer to a pointer than a sealed envelope, which is acknowledged and intentional.
+Truncating the SHA-256 digest to 120 bits leaves a collision-finding work factor of about 2^60 and a preimage-finding work factor of about 2^120 against arbitrary inputs. Accidental collision between unrelated functions is not a practical concern at any plausible corpus size.
+
+Collision against a *known* target is cheaper. Someone who suspects which package and version a VID refers to can hash every function in that package and check matches, and for popular libraries the candidate space is small and fully public. A published VID is therefore closer to a pointer than a sealed envelope, which is acknowledged and intentional.
 
 ### What the construction does not do
 
-The construction names code rather than packages: the same bytes copied into many packages produce one VID, and the mapping from VID to affected packages lives in whatever record is kept against it. It names code rather than vulnerabilities: the VID identifies code being claimed about, with the truth or severity of the claim coming from a different layer. No database is required: aliases between VIDs (different sinks for one bug, different artefact versions of one file) sit in whatever record a consumer chooses to keep, not in a central registry. The model assumes good-faith participants and does not defend against adversaries trying to mint colliding identifiers or precompute VIDs over public code to claim credit. Byte normalisation is not performed; light normalisation (LF-only line endings, trimmed trailing whitespace) and AST-based hashing are candidate revisions if real-world reformat churn turns out to be a significant problem, but the current default is literal bytes.
+The construction names code rather than packages. The same bytes copied into many packages produce one VID, and the mapping from VID to affected packages lives in whatever record is kept against it.
+
+It names code rather than vulnerabilities. The VID identifies code being claimed about; the truth or severity of the claim comes from a different layer.
+
+No database is required. Aliases between VIDs (different sinks for one bug, different artefact versions of one file) sit in whatever record a consumer chooses to keep, not in a central registry.
+
+The model assumes good-faith participants and does not defend against adversaries trying to mint colliding identifiers or precompute VIDs over public code to claim credit.
+
+Byte normalisation is not performed. Light normalisation (LF-only line endings, trimmed trailing whitespace) and AST-based hashing are candidate revisions if real-world reformat churn turns out to be a significant problem, but the current default is literal bytes.
 
 ## Reference implementation
 
@@ -181,4 +203,8 @@ vid.Compute(sinks []vid.Sink) vid.Result
     $ vid lib/query.js:42 lib/audit.js:88
     VID-...                        # multi-sink combined VID
 
-Setting `VID_DEBUG=1` prints the preimage and per-sink (mode, language, OID) to stderr alongside the VID, which is what test vectors are confirmed against. The test corpus lives in [examples/](examples/), with each fixture as a directory containing a vulnerable file, a fixed file, a perturbation file (the vulnerable file with edits outside the sink function), and an `advisory.yaml` manifest with the golden VID. The test runner walks `examples/*/advisory.yaml`, computes the VID for each sink, and asserts that the sink VID matches the golden, that the fixed-file VID differs from the vulnerable VID, and that the perturbed-file VID equals the vulnerable VID.
+Setting `VID_DEBUG=1` prints the preimage and per-sink (mode, language, OID) to stderr alongside the VID, which is what test vectors are confirmed against.
+
+The test corpus lives in [examples/](examples/), with each fixture as a directory containing a vulnerable file, a fixed file, a perturbation file (the vulnerable file with edits outside the sink function), and an `advisory.yaml` manifest with the golden VID. Multi-sink fixtures use the plural `sinks`, `fixed_sinks`, and `perturbation_sinks` forms in place of the singular fields.
+
+The test runner walks `examples/*/advisory.yaml`, computes the VID for each sink (or sink list), and asserts that the sink VID matches the golden, that the fixed VID differs from the vulnerable VID, and that the perturbed VID equals the vulnerable VID. What the corpus validates is therefore boundary stability across grammar versions and out-of-function invariance against perturbation. The cross-artefact byte-identity claim (registry tarball vs. git checkout vs. distro repackaging of the same release) is asserted by the construction but not yet measured by the corpus.
