@@ -1,6 +1,6 @@
-# VID specification (draft)
+# VID specification
 
-This document describes how a VID is computed. The construction is reverse-engineered from the reference implementation in this repository, which is the source of truth while the spec is still in draft.
+This document describes how a VID is computed. The reference implementation in this repository is the source of truth.
 
 ## Identifier format
 
@@ -107,7 +107,7 @@ Languages with closures, lambdas, or anonymous functions can have multiple match
 
 ## Test vectors
 
-The vectors below are computed by the reference implementation and verified by the test suite.
+Each vector below is verified by the test suite.
 
 ### File-fallback vector
 
@@ -182,7 +182,7 @@ No database is required. Aliases between VIDs (different sinks for one bug, diff
 
 The model assumes good-faith participants and does not defend against adversaries trying to mint colliding identifiers or precompute VIDs over public code to claim credit.
 
-Byte normalisation is not performed. Light normalisation (LF-only line endings, trimmed trailing whitespace) and AST-based hashing are candidate revisions if real-world reformat churn turns out to be a significant problem, but the current default is literal bytes.
+Byte normalisation is not performed. The hash is over literal source bytes; LF-only line endings, trimmed trailing whitespace, and AST-based canonicalisation are all rejected in favour of grammar-version stability.
 
 ## Reference implementation
 

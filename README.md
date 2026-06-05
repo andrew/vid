@@ -57,9 +57,9 @@ Because the input is bytes, anyone with the same function bytes computes the sam
 
 The hash is over literal bytes, without normalisation, so any edit inside the function (whitespace, comments, a reformatter pass, a renamed local, CRLF instead of LF, git's autocrlf conversion on a cross-platform checkout) changes the VID. Two byte-identical copies of a function converge across packages, files, and forks; copies that differ only by formatting do not.
 
-This is the load-bearing empirical bet of the whole scheme: that registry tarballs, git checkouts, and distro repackagings of the same release routinely produce byte-identical function bytes in practice, and that reformat churn between versions is rarer than the parser-version churn an AST-based scheme would inherit. The current test corpus exercises boundary stability across grammar versions and out-of-function invariance against perturbation; it does not yet measure the cross-artefact byte-identity claim. That measurement is what would actually validate or falsify the bet, and it is still to do.
+This is the load-bearing empirical bet of the whole scheme: that registry tarballs, git checkouts, and distro repackagings of the same release routinely produce byte-identical function bytes in practice, and that reformat churn between versions is rarer than the parser-version churn an AST-based scheme would inherit.
 
-The alternatives considered (hashing a canonicalised tree-sitter AST, or light normalisation such as LF-only line endings and trimmed trailing whitespace) would resist some reformatting at the cost of either pinning every VID to a specific grammar version or carrying their own normalisation logic that every consumer must reproduce. This draft accepts grammar-stability at the cost of reformat-resilience, and the choice is open to revision toward light normalisation or AST-based hashing if the corpus eventually shows that real-world reformat churn is high.
+The alternatives are hashing a canonicalised tree-sitter AST, or light normalisation such as LF-only line endings and trimmed trailing whitespace. Both resist some reformatting at the cost of either pinning every VID to a specific grammar version or carrying their own normalisation logic that every consumer must reproduce. The scheme picks grammar-stability over reformat-resilience.
 
 Ecosystems where the published archive is a build of the source (npm with bundlers, Python with compiled wheels, Java with jars) introduce a related complication: the registry function bytes and the repository function bytes diverge, and a VID computed from the source produces a different identifier than a VID computed from the published artefact. One logical finding can therefore carry two VIDs depending on which artefact a researcher or scanner looked at. The two are linked as aliases in whatever record carries them, and consumer-side matching against installed code is performed against the installed bytes (which match the registry artefact).
 
@@ -69,7 +69,7 @@ A VID is to a vulnerability report what a git blob hash is to a source file: it 
 
 Which function counts as the sink is the judgment call the scheme still depends on, and it matters more than it looks. A taint flow that runs from `parseInput` through `buildQuery` to `db.exec` gives three valid sinks, and analysts naturally anchor on different points in the chain and produce three different VIDs for what is conceptually the same finding. Other ambiguous cases include a wrapper and the function it wraps, one of several near-identical template renderers, or a callsite and the helper it calls.
 
-Where two researchers pick the same function their VIDs match. Where they pick differently the resulting VIDs are linked as aliases the way advisory databases link CVE and GHSA today, with the difference that the link can live in whatever record a consumer chooses to keep rather than requiring a central authority.
+Where two researchers pick the same function their VIDs match. Where they pick differently the resulting VIDs are linked as aliases, the way advisory databases link CVE and GHSA, with the difference that the link can live in whatever record a consumer chooses to keep rather than requiring a central authority.
 
 The function range itself depends on a specific tree-sitter grammar producing the same boundaries for each function, which is the most stable thing a parser produces but is not authority-free, and pinning a grammar means a grammar bump is also a spec bump.
 
@@ -87,7 +87,7 @@ The first line is computed and the rest is the researcher's analysis, and a main
 
 ## What it lets you do
 
-Two researchers with overlapping private finding sets cannot today learn that overlap without sharing the underlying details first, but with VIDs each side hashes their candidate functions locally and exchanges only the resulting identifiers, and a match indicates convergence on the same code while the rest of each list is what is uniquely held. This is the use case that breaks today; every existing mechanism requires revealing at least the file path or the package being analysed before overlap can be established.
+Two researchers with overlapping private finding sets have no good way to learn that overlap without sharing the underlying details first. With VIDs each side hashes their candidate functions locally and exchanges only the resulting identifiers, and a match indicates convergence on the same code while the rest of each list is what is uniquely held. Every existing mechanism requires revealing at least the file path or the package being analysed before overlap can be established.
 
 When several automated scanners run on overlapping code by different people and flag overlapping functions as security-relevant, matching VIDs across those flags are independent confirmation that the scanners pointed at the same code, which carries more weight than any single scanner's hit rate. The scanners can still disagree about severity, CWE, exploitability, or whether the finding is real at all, and a matching VID does not collapse those disagreements; it only establishes that the same code is under discussion. Scanner vendors are also spared inventing vendor-specific identifier schemes, and downstream consumers correlate findings across vendors without a vendor-by-vendor mapping.
 
@@ -105,7 +105,7 @@ A published VID is a soft commitment rather than a sealed envelope. The 120-bit 
 
 Some classes of vulnerability fit the model badly: a bug that consists of an absent check or call has no canonical bytes to point at, and researchers describing the same missing-check finding may pick different enclosing functions and converge less reliably. Bugs in configuration files, build descriptors, algorithm choice, or default values stretch the model further, and the construction is sharpest for vulnerabilities with a definite sink such as a dangerous call, a tainted write, or a misused API.
 
-Adversarial use is out of scope for this draft, which assumes participants acting in good faith. Attackers trying to mint colliding identifiers or precompute VIDs over public code to claim credit are not defended against, and the model also does not address coordinated mis-attribution between parties exchanging lists.
+Adversarial use is out of scope. The model assumes participants acting in good faith. Attackers trying to mint colliding identifiers or precompute VIDs over public code to claim credit are not defended against, and the model also does not address coordinated mis-attribution between parties exchanging lists.
 
 The same bytes in multiple packages produce one VID, and the package mapping lives in the surrounding record rather than in the identifier itself. When to tell the maintainer, when to publish, and what to share with whom remain human decisions outside the spec's scope, and advisory databases are welcome to carry VIDs as aliases (the scheme is more useful if they do), but the construction depends on no database existing.
 
@@ -113,15 +113,13 @@ A VID identifies the code being claimed about, with the truth or importance of t
 
 ## Status
 
-The construction in [SPEC.md](SPEC.md) is a draft, still settling but not stable. The repository carries a Go reference implementation (CLI and library) and a test corpus of 22 real advisories under [examples/](examples/), each with a vulnerable file (or files), a fixed file (or files), and a perturbation file used to assert that edits outside the sink function leave the VID unchanged.
+The construction is in [SPEC.md](SPEC.md). The repository carries a Go reference implementation (CLI and library) and a test corpus of 22 real advisories under [examples/](examples/), each with a vulnerable file (or files), a fixed file (or files), and a perturbation file used to assert that edits outside the sink function leave the VID unchanged.
 
 Coverage is two advisories each across JavaScript, TypeScript, Ruby, Python, Go, Rust, PHP, Java, C, and C++, plus two multi-sink advisories (Heartbleed and runc CVE-2024-21626) where the patch lands in two parallel code paths.
 
-What the corpus actually validates is boundary stability across grammar versions and out-of-function invariance against perturbation. The cross-artefact byte-identity claim — that registry tarballs, git checkouts, and distro repackagings of the same release routinely produce byte-identical function bytes — is asserted by the construction but is not yet measured against real-world artefacts. Quantifying that bet is the next obvious piece of corpus work.
+The corpus validates boundary stability across grammar versions and out-of-function invariance against perturbation. The cross-artefact byte-identity claim — that registry tarballs, git checkouts, and distro repackagings of the same release routinely produce byte-identical function bytes — is asserted by the construction but is not measured by the corpus.
 
 Multi-sink is the place this convergence story is weakest. The moment a vulnerability spans more than one function the parties have to agree on the set of sinks before they converge, which puts them back in the coordination problem the single-function case escapes. The library combines multiple sinks by sorting their OIDs, deduplicating, and joining with `\n` in the preimage, and the two multi-sink fixtures verify that the combined VID is stable across edits outside any of the sink functions.
-
-The most impactful open question is whether the identifier needs a version prefix. It is currently just `VID-`, dropped on the grounds that nothing has shipped, but each subsequent breaking change to the construction reopens that decision.
 
 ## License
 
