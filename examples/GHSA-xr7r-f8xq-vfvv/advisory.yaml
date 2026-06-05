@@ -1,0 +1,40 @@
+advisory: GHSA-xr7r-f8xq-vfvv
+cve: CVE-2024-21626
+purl: pkg:golang/github.com/opencontainers/runc
+cwe: CWE-403
+summary: Leaked file descriptors in container Init paths allow a process to start with a working directory in the host filesystem, leading to container escape. The fix lands in both setns and standard init paths.
+
+sinks:
+  - file: _vuln_setns.go
+    line: 32
+  - file: _vuln_standard.go
+    line: 48
+
+fixed_sinks:
+  - file: _fixed_setns.go
+    line: 34
+  - file: _fixed_standard.go
+    line: 49
+
+perturbation_sinks:
+  - file: _perturbed_setns.go
+    line: 36
+    note: comment header prepended and unrelated helper appended; linuxSetnsInit.Init body unchanged
+  - file: _perturbed_standard.go
+    line: 51
+    note: comment header prepended and unrelated helper appended; linuxStandardInit.Init body unchanged
+
+expected:
+  vid: VID-y2uw-z46u-gsqd-ibmu-2qvt-bsra
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-xr7r-f8xq-vfvv
+  - https://nvd.nist.gov/vuln/detail/CVE-2024-21626
+  - https://github.com/opencontainers/runc/commit/02120488a4c0fc487d1ed2867e901eeed7ce8ecf
+
+provenance:
+  vuln_version: 1.1.11
+  fixed_version: 1.1.12
+  vuln_source: github.com/opencontainers/runc raw v1.1.11 libcontainer/setns_init_linux.go and libcontainer/standard_init_linux.go
+  fixed_source: github.com/opencontainers/runc raw v1.1.12 libcontainer/setns_init_linux.go and libcontainer/standard_init_linux.go

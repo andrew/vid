@@ -1,36 +1,45 @@
 # FAQ
 
-Questions that came up during review. See [README.md](README.md) for the rationale and [SPEC.md](SPEC.md) for the construction.
+See [README.md](README.md) for the rationale and [SPEC.md](SPEC.md) for the construction.
 
 **Is this trying to replace CVE?**
-No. VID is a pre-CVE coordination layer. A VID exists from the moment of finding; once a CVE is assigned the VID record carries it as an alias and the CVE is what everyone cites publicly.
+No. VID is a pre-CVE coordination layer. A VID exists from the moment of finding; once a CVE is assigned, the VID becomes one of the CVE's aliases and the CVE remains the public name everyone cites. VID handles the part of the workflow that happens before disclosure (dedup, private comparison, scanner interoperability, consumer matching against installed code) which CVE was never designed for and is increasingly overwhelmed by.
 
-**A whitespace change to the file produces a new VID. Isn't that too fragile?**
-It is precise rather than fragile. The identifier says "these exact bytes in this package," and if the bytes change the claim needs re-checking. The old and new VIDs are linked as aliases in the surrounding record, so nothing is lost; you gain certainty about which code a given VID actually refers to.
+**What does the lifecycle of a finding with a VID look like?**
+A scanner or researcher identifies a function as security-relevant and computes its VID. The VID can be logged privately, used internally for dedup, exchanged with another researcher to discover overlap without revealing the underlying code, or sent to the maintainer as part of a report. The maintainer triages incoming reports by VID, sees duplicates collapse to a single distinct entry, fixes the function (which changes its bytes, and therefore its VID), and records that the old VID is patched while the new bytes carry a new VID. If the maintainer or a CNA pursues a CVE, the VID becomes one of the CVE's aliases. Consumers running scanners against their installed dependency trees emit their own VIDs and match them against known-vulnerable VIDs, and matches identify the specific functions in the tree that need reachability analysis from the application's own entry points.
 
-**Why isn't the CWE part of the hash?**
-Because two researchers looking at the same bug often pick different CWEs, and any subjective input breaks the property that independent finders converge on the same identifier. CWE travels as metadata alongside the VID.
+**Why does VID identify code rather than vulnerabilities?**
+Because independent parties can reliably agree on bytes long before they can reliably agree on whether those bytes constitute a vulnerability. Two scanners can flag the same function and disagree about CWE, severity, exploitability, or whether the finding is real at all, while still emitting the same VID and so making their disagreement legible. Identifying "the vulnerability" directly would require an input expressing someone's judgment about severity or weakness class, and the convergence property would dissolve.
 
-**Why is there no version in the purl?**
-The file hash already pins the content. If the same vulnerable file ships unchanged in five releases, one VID covers all five. Affected version ranges belong in the surrounding record.
+**Why is the package (purl) not part of the hash?**
+Because the set of purls that cover any given piece of code is open and unknowable: registry copies, repo copies, forks, vendored copies, private mirrors, downstream redistributions across distros. Two researchers cannot be expected to agree on which one to pick, and including any subset would be arbitrary. Hashing only the bytes makes convergence depend on the code itself, and the same vulnerable function copied into many packages produces one VID matching every copy. The purl travels alongside the VID as metadata in any record kept against it.
 
-**How is this different from OmniBOR?**
-OmniBOR's gitoid identifies a file's bytes wherever they appear. VID uses that same hash as one input but adds the package name, because the unit of disclosure and triage is the package, and the same bytes vendored into fifty packages means fifty maintainers. VID also names a vulnerability location specifically; a gitoid on its own names an artefact.
+**Why is the CWE not part of the hash?**
+For the same convergence reason as the purl: two researchers looking at the same bug routinely pick different CWEs, and any subjective input breaks the property that independent finders compute the same identifier. CWE travels as metadata in the surrounding record.
 
-**Can someone brute-force a published VID to find out what it refers to?**
-Often yes, for popular packages. The preimage is a package name plus a file hash, and someone who suspects which package is involved can hash each of its files and check. A VID is a commitment that binds you to a finding; it does not hide the finding from a determined guesser.
+**Why function bytes, and not the whole file?**
+Hashing the whole file means any edit anywhere in the file (an unrelated helper added, an import reordered, a formatter pass) produces a new VID, so one bug appears as several across releases. The function is the actual vulnerable unit and stays stable when unrelated code in the same file changes. The cost is that the construction needs a parser to find the function boundary; the spec uses tree-sitter and falls back to the whole-file hash when no enclosing function is available (module-scope sinks, languages tree-sitter does not support).
+
+**A whitespace change inside the function produces a new VID. Isn't that fragile?**
+Yes, and this is the load-bearing empirical bet of the scheme: that byte-identical function bytes show up routinely across registry tarballs, git checkouts, and distro repackagings of the same release in practice, and that reformat churn between versions is rarer than the parser-version churn an AST-based scheme would inherit instead. If the test corpus shows the bet is wrong (real-world copies of the same release diverge by formatting often), the construction shifts to light normalisation (LF-only line endings, trimmed trailing whitespace) or AST-based hashing. The current default is "literal bytes, no normalisation" because that survives grammar upgrades unchanged and is the simplest construction to reimplement from scratch.
 
 **What about JavaScript packages with a build step?**
-The repository file and the published file have different bytes and therefore different VIDs. The published archive is the reference for consumer-side matching. A researcher scanning the repository computes one VID; tooling can map it to the published-archive VID, or the record carries both as aliases.
+The repository file and the published file have different bytes and therefore different VIDs. The published archive is the reference point for consumer-side matching against installed code, since that is what dependents actually run. A researcher scanning the repository computes one VID; the same finding scanned against the published archive computes another; the two are linked as aliases in whatever record carries them. The same applies to any ecosystem where the published artefact differs from the source repository: bundled or minified npm packages, packages that compile C extensions into wheels, Java jars containing compiled `.class` files. For ecosystems where the published artefact is the source unchanged (most Go, Ruby, pure-Python), the repository VID and the registry VID coincide.
 
-**Two researchers pick different sink files for the same bug. Now what?**
-They have two VIDs for one issue. The VIDs are linked as aliases in the surrounding record, the same way a CVE and a GHSA for one issue are linked today. In practice automated scanners that converge on the same bug tend to converge on the same sink file, so this is less common than it sounds.
+**Two researchers pick different functions for the same bug. Now what?**
+They produce two different VIDs for one conceptual finding. The two are linked as aliases in any record either party keeps, and any consumer who has both records sees the link. The aliasing is local knowledge, not universal truth, because the construction does not depend on a central database equivalent to the CVE/GHSA registry: two consumers can have different views of what is aliased to what, depending on which records they have collected. In practice automated scanners that converge on the same bug tend to converge on the same sink function (they share biases), so this matters most when a human and a scanner anchor on different points in a taint chain.
 
-**What about a vulnerability that's a property of the whole package, with no single file to point at?**
-Out of scope for v1. An earlier draft used the package manifest as a fallback, but that collides unrelated package-level findings onto one VID, which is worse than admitting the scheme doesn't fit.
+**How is this different from OmniBOR, SWHID, and SARIF?**
+OmniBOR's gitoid is the same hash construction VID uses internally, but OmniBOR identifies a whole file's bytes and does not extract a function range or address vulnerability coordination workflows. SWHID identifies source artefacts for archival, again at the file or commit level rather than the function level. SARIF fingerprints dedup findings within one scanner's output but are not designed to match across tools or people. VID is OmniBOR-style content addressing applied to function-extracted byte ranges, with the convention of using the result as a coordination key across tools, researchers, maintainers, and consumers.
 
-**Doesn't GitLab have a patent on vulnerability fingerprinting?**
-US 11,868,482 covers hashing a scope, an offset, and a classifier. VID hashes a package name and a content hash, with no location offset and no classifier. They are different constructions. This is an observation about the published claims and is not legal advice.
+**Can someone brute-force a published VID to find out what it refers to?**
+For popular packages, yes. The preimage is a function's bytes, and someone who suspects which library the finding is in can extract every function from that library and hash each one in seconds. The 120-bit truncation makes brute-forcing the bytes from scratch infeasible, but the candidate space for any specific library at a specific version is small and fully public. A published VID is a soft commitment that binds the publisher to a finding at time T; it does not hide the finding from a determined guesser. Against a well-known target, a published VID is closer to a pointer than a sealed envelope.
+
+**What about a vulnerability that has no specific code location?**
+Out of scope for this version. If the issue is a property of the package as a whole (an insecure default applied at install time, a missing security feature with no specific file that would change to fix it), the construction has nothing to hash that converges. An earlier draft used the package manifest as a fallback, but that collides unrelated package-level findings onto one VID, which is worse than admitting the scheme does not fit. Such findings are handled at the package level by CVE and GHSA today and continue to be.
 
 **Where do VID records live?**
-Wherever you put them. There is no required database. The expectation is that existing advisory databases will carry VIDs as one more alias, and that researchers and consumers will hold their own sets locally.
+Wherever the people using them put them. There is no required database. Existing advisory databases (OSV, GHSA, vendor records) can carry VIDs as one more alias if they choose, but the construction does not depend on any database existing. Researchers and consumers commonly hold local sets, and scanner vendors emit VIDs alongside their findings without needing a central registry.
+
+**Doesn't GitLab have a patent on vulnerability fingerprinting?**
+US 11,868,482 covers hashing a tuple that includes a scope, an offset, and a classifier (typically a CWE). VID hashes function bytes with no offset, no classifier, and no package name. The constructions differ in what they hash and what they produce. This is an observation about the published claims of the patent and is not legal advice.

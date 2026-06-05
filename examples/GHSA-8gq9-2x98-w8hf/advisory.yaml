@@ -1,0 +1,33 @@
+advisory: GHSA-8gq9-2x98-w8hf
+cve: CVE-2022-1941
+purl: pkg:generic/protobuf
+cwe: CWE-770
+summary: MessageSet parser in WireFormat allocated unbounded memory for malformed input, allowing a small payload to cause out-of-memory denial of service
+
+sink:
+  file: _vuln.cc
+  line: 657
+
+fixed:
+  file: _fixed.cc
+  line: 657
+
+perturbation:
+  file: _perturbed.cc
+  line: 662
+  note: comment header prepended and unrelated namespace appended; MessageSetParser::_InternalParse body unchanged
+
+expected:
+  vid: VID-4ih4-wqvd-kd2j-sma3-4ndo-44xb
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-8gq9-2x98-w8hf
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-1941
+  - https://github.com/protocolbuffers/protobuf/commit/d1635e1496f51e0d5653d856211e8821bc47adc4
+
+provenance:
+  vuln_version: 3.21.5
+  fixed_version: 3.21.6
+  vuln_source: github.com/protocolbuffers/protobuf raw v3.21.5 src/google/protobuf/wire_format.cc
+  fixed_source: github.com/protocolbuffers/protobuf raw v3.21.6 src/google/protobuf/wire_format.cc

@@ -1,0 +1,33 @@
+advisory: GHSA-w73w-5m7g-f7qc
+cve: CVE-2020-26160
+purl: pkg:golang/github.com/dgrijalva/jwt-go
+cwe: CWE-639
+summary: MapClaims.VerifyAudience did not type-check the aud claim, so an empty-string-array audience bypassed audience validation
+
+sink:
+  file: _vuln.go
+  line: 15
+
+fixed:
+  file: _fixed.go
+  line: 15
+
+perturbation:
+  file: _perturbed.go
+  line: 19
+  note: comment header prepended and unrelated helper appended; VerifyAudience body unchanged
+
+expected:
+  vid: VID-cz7k-yiy2-dpul-lbnc-s6ls-l43v
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-w73w-5m7g-f7qc
+  - https://nvd.nist.gov/vuln/detail/CVE-2020-26160
+  - https://github.com/dgrijalva/jwt-go/commit/ec0a89a131e3e8567adcb21254a5cd20a70ea4ab
+
+provenance:
+  vuln_version: pre-ec0a89a (3.2.x lineage)
+  fixed_version: 4.0.0-preview1
+  vuln_source: github.com/dgrijalva/jwt-go map_claims.go at ec0a89a~1
+  fixed_source: github.com/dgrijalva/jwt-go map_claims.go at ec0a89a

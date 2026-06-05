@@ -1,0 +1,33 @@
+advisory: GHSA-ffqj-6fqr-9h24
+cve: CVE-2022-29217
+purl: pkg:pypi/pyjwt
+cwe: CWE-327
+summary: Algorithm confusion via insufficient public-key blocklist in HMACAlgorithm.prepare_key; SSH public keys could be used as HMAC secrets
+
+sink:
+  file: vuln.py
+  line: 183
+
+fixed:
+  file: fixed.py
+  line: 183
+
+perturbation:
+  file: perturbed.py
+  line: 187
+  note: comment header prepended and unrelated helper appended; HMACAlgorithm.prepare_key body unchanged
+
+expected:
+  vid: VID-2x7q-crij-3cst-uo6z-pb22-zezs
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-ffqj-6fqr-9h24
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-29217
+  - https://github.com/jpadilla/pyjwt/commit/9c528670c455b8d948aff95ed50e22940d1ad3fc
+
+provenance:
+  vuln_version: 2.3.0
+  fixed_version: 2.4.0
+  vuln_source: pip download pyjwt==2.3.0 (jwt/algorithms.py from wheel)
+  fixed_source: pip download pyjwt==2.4.0 (jwt/algorithms.py from wheel)

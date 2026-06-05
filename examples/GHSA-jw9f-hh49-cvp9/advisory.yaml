@@ -1,0 +1,33 @@
+advisory: GHSA-jw9f-hh49-cvp9
+cve: CVE-2021-3517
+purl: pkg:generic/libxml2
+cwe: CWE-122
+summary: Heap-based buffer overflow in xmlEncodeEntitiesInternal when encoding malformed UTF-8 input
+
+sink:
+  file: _vuln.c
+  line: 561
+
+fixed:
+  file: _fixed.c
+  line: 599
+
+perturbation:
+  file: _perturbed.c
+  line: 566
+  note: comment header prepended and unrelated helper appended; xmlEncodeEntitiesInternal body unchanged
+
+expected:
+  vid: VID-xlyd-7ntm-7qvr-ri6d-6apm-pgcv
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-jw9f-hh49-cvp9
+  - https://nvd.nist.gov/vuln/detail/CVE-2021-3517
+  - https://gitlab.gnome.org/GNOME/libxml2/-/commit/50f06b3efb638efb0abd95dc62dca05ae67882c2
+
+provenance:
+  vuln_version: 2.9.10
+  fixed_version: 2.9.11
+  vuln_source: gitlab.gnome.org/GNOME/libxml2 raw v2.9.10 entities.c
+  fixed_source: gitlab.gnome.org/GNOME/libxml2 raw v2.9.11 entities.c

@@ -1,0 +1,33 @@
+advisory: GHSA-54rr-7fvw-6x8f
+cve: CVE-2024-26146
+purl: pkg:gem/rack
+cwe: CWE-1333
+summary: ReDoS via inefficient regex in Rack::Utils.q_values header parser
+
+sink:
+  file: vuln.rb
+  line: 145
+
+fixed:
+  file: fixed.rb
+  line: 145
+
+perturbation:
+  file: perturbed.rb
+  line: 149
+  note: comment header prepended and unrelated module appended; q_values body unchanged
+
+expected:
+  vid: VID-mbj7-twdk-e7mm-lmyx-p7gg-hhic
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-54rr-7fvw-6x8f
+  - https://nvd.nist.gov/vuln/detail/CVE-2024-26146
+  - https://github.com/rack/rack/commit/30b8e399cee8a4abc7522b9b8aa45fa56b4a02b7
+
+provenance:
+  vuln_version: 2.2.8
+  fixed_version: 2.2.8.1
+  vuln_source: gem fetch rack --version=2.2.8 (lib/rack/utils.rb verbatim)
+  fixed_source: gem fetch rack --version=2.2.8.1 (lib/rack/utils.rb verbatim)

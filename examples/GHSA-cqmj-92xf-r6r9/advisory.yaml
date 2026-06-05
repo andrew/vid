@@ -1,0 +1,33 @@
+advisory: GHSA-cqmj-92xf-r6r9
+cve: CVE-2023-32695
+purl: pkg:npm/socket.io-parser
+cwe: CWE-1321
+summary: Decoder.isPayloadValid accepted arrays whose first element was an object, allowing crafted payloads to reach later parsing stages and trigger prototype pollution
+
+sink:
+  file: vuln.ts
+  line: 268
+
+fixed:
+  file: fixed.ts
+  line: 268
+
+perturbation:
+  file: perturbed.ts
+  line: 272
+  note: comment header prepended and unrelated helper appended; isPayloadValid body unchanged
+
+expected:
+  vid: VID-ccwt-5gut-ny24-wrmu-f7be-qxez
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-cqmj-92xf-r6r9
+  - https://nvd.nist.gov/vuln/detail/CVE-2023-32695
+  - https://github.com/socketio/socket.io-parser/commit/3b78117bf73d96eb6e0664a807ea25b09ddc7180
+
+provenance:
+  vuln_version: 4.2.2
+  fixed_version: 4.2.3
+  vuln_source: github.com/socketio/socket.io-parser raw 4.2.2 lib/index.ts
+  fixed_source: github.com/socketio/socket.io-parser raw 4.2.3 lib/index.ts

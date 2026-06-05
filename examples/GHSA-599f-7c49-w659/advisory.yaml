@@ -1,0 +1,32 @@
+advisory: GHSA-599f-7c49-w659
+cve: CVE-2022-42889
+purl: pkg:maven/org.apache.commons/commons-text
+cwe: CWE-94
+summary: StringLookupFactory.addDefaultStringLookups exposed script/dns/url interpolators by default, allowing arbitrary code execution via crafted strings (Text4Shell)
+
+sink:
+  file: vuln.java
+  line: 407
+
+fixed:
+  file: fixed.java
+  line: 565
+
+perturbation:
+  file: perturbed.java
+  line: 411
+  note: comment header prepended and unrelated class appended; addDefaultStringLookups body unchanged
+
+expected:
+  vid: VID-hbpm-yy6t-yq6f-pj2d-7yzs-2cn2
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-599f-7c49-w659
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-42889
+
+provenance:
+  vuln_version: 1.9
+  fixed_version: 1.10.0
+  vuln_source: github.com/apache/commons-text raw rel/commons-text-1.9 src/main/java/org/apache/commons/text/lookup/StringLookupFactory.java
+  fixed_source: github.com/apache/commons-text raw rel/commons-text-1.10.0 src/main/java/org/apache/commons/text/lookup/StringLookupFactory.java

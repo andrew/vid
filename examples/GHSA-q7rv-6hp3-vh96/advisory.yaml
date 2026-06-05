@@ -1,0 +1,33 @@
+advisory: GHSA-q7rv-6hp3-vh96
+cve: CVE-2022-24775
+purl: pkg:packagist/guzzlehttp/psr7
+cwe: CWE-93
+summary: trimHeaderValues did not validate values against RFC 7230, allowing CR/LF injection in HTTP headers via Message header setters
+
+sink:
+  file: vuln.php
+  line: 187
+
+fixed:
+  file: fixed.php
+  line: 192
+
+perturbation:
+  file: perturbed.php
+  line: 190
+  note: comment header prepended (replacing the opening php tag) and unrelated helper appended; trimHeaderValues body unchanged
+
+expected:
+  vid: VID-ctzk-bkbj-6pls-pgg6-kkbj-zpdl
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-q7rv-6hp3-vh96
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-24775
+
+provenance:
+  vuln_version: 1.8.3
+  fixed_version: 1.8.4
+  vuln_source: github.com/guzzle/psr7 raw 1.8.3 src/MessageTrait.php
+  fixed_source: github.com/guzzle/psr7 raw 1.8.4 src/MessageTrait.php
+  notes: The function was renamed in the fix (trimHeaderValues -> trimAndValidateHeaderValues), so the vuln sink and fixed sink point at functions with different names; the VIDs differ both because the bytes differ and because the function identity in the fix is a new function.

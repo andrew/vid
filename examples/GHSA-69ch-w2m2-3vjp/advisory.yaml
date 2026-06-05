@@ -1,0 +1,33 @@
+advisory: GHSA-69ch-w2m2-3vjp
+cve: CVE-2022-32149
+purl: pkg:golang/golang.org/x/text
+cwe: CWE-1333
+summary: Quadratic-time parsing in ParseAcceptLanguage allows denial of service via language tags with many dashes
+
+sink:
+  file: _vuln.go
+  line: 158
+
+fixed:
+  file: _fixed.go
+  line: 158
+
+perturbation:
+  file: _perturbed.go
+  line: 162
+  note: comment header prepended and unrelated helper appended; ParseAcceptLanguage body unchanged
+
+expected:
+  vid: VID-uzru-po4n-6ujg-23uf-7fxu-nm65
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-69ch-w2m2-3vjp
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-32149
+  - https://github.com/golang/text/commit/434eadcdbc3b0256971992e8c70027278364c72c
+
+provenance:
+  vuln_version: 0.3.7
+  fixed_version: 0.3.8
+  vuln_source: github.com/golang/text raw v0.3.7 language/parse.go
+  fixed_source: github.com/golang/text raw v0.3.8 language/parse.go

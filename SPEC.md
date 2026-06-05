@@ -1,98 +1,184 @@
-# VID: content-addressed vulnerability identifiers
+# VID specification (draft)
 
-Version 1, draft, April 2026.
+This document describes how a VID is computed. The construction is reverse-engineered from the reference implementation in this repository, which is the source of truth while the spec is still in draft.
 
-A VID identifies a vulnerability by hashing where it lives. There is no issuing authority. Two people who find the same vulnerability compute the same VID without talking to each other.
+## Identifier format
+
+A VID is the string `VID-` followed by six groups of four characters separated by hyphens:
+
+    VID-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx
+
+Each character is one of `a`-`z` or `2`-`7`, drawn from the RFC 4648 base32 lowercase alphabet without padding, and the total string length is 33 characters including the prefix and hyphens. There is no version number in the identifier; the construction is treated as fixed until the spec stabilises, and any breaking change to the inputs or encoding will be addressed by reopening the question of whether to add a version prefix at that point.
 
 ## Inputs
 
-### purl
+The construction takes one or more sinks. Each sink is a triple:
 
-The [package URL](https://github.com/package-url/purl-spec) of the affected package: a standard string naming a package in a registry, such as `pkg:npm/lodash` or `pkg:gem/rails`. For code not published to a registry, use a `pkg:github/owner/repo` or `pkg:generic/name` purl. A repository purl may also be used for published code when the intent is to scope the finding to the source so that forks and repackagings of the same file are covered; one finding may carry both a registry-scoped and a repository-scoped VID.
+    sink = (filename, source_bytes, sink_line)
 
-The purl MUST be normalised as follows before hashing:
-
-- no `@version` component
-- no `?qualifiers` component
-- no `#subpath` component
-- type and namespace/name case-folded per the type-specific rules in the purl spec (for example, npm names are lowercased; Go module paths are not)
-- percent-encoding normalised per the purl spec
-
-These restate the canonical form defined by the purl spec and its per-type rules. A reference normaliser will be named in a later draft because existing purl libraries do not all produce byte-identical output for the same input.
-
-### gitoid
-
-The SHA-256 gitoid of the file in which the vulnerability lives, expressed as 64 lowercase hex characters. The SHA-256 gitoid of a file is
-
-    sha256( "blob " <bytelen> 0x00 <bytes> )
-
-where `<bytelen>` is the file's length in bytes as ASCII decimal and `<bytes>` is the file's content. This is the construction used by git's SHA-256 object format and by [OmniBOR](https://omnibor.io). It can be computed from the file alone; neither git nor a checkout is required.
-
-For a registry purl (`pkg:npm`, `pkg:pypi`, `pkg:gem`, ...) the reference bytes are the file as it appears in the published package archive. The source repository at the corresponding tag is equivalent whenever the package publishes its source unchanged, which is common in Go, Python, Ruby, Rust, and PHP and uncommon in JavaScript, where a build step often sits between the repository and the published tarball. Where repository and archive differ, VIDs computed from each will differ, and tooling that needs consumer-side matching should hash the archive.
-
-For a repository purl (`pkg:github`, `pkg:generic`) the reference bytes are the file as it appears in the checkout being analysed.
-
-### Choosing the file
-
-Use the file containing the call to the dangerous operation. If the vulnerability is a missing check rather than a dangerous call, use the file where the check would be added.
-
-    SQL injection         file containing the query construction or execution call
-    command injection     file containing the exec/spawn/system call
-    XSS                   file containing the unescaped write to the response or DOM
-    unsafe deserialise    file containing the call that deserialises untrusted bytes
-    missing auth check    file containing the handler that should perform the check
-
-If a vulnerability has more than one sink, mint one VID per sink and link them as aliases in the surrounding record. Record other involved files (taint sources, helpers, intermediate transforms) as metadata alongside the VID.
-
-A vulnerability that is a property of the package as a whole, with no file that would be changed to fix it, is out of scope for v1.
+`filename` is used to detect the source language by extension. `source_bytes` is the literal byte content of the file. `sink_line` is a 1-based line number naming the line a researcher or scanner is pointing at as security-relevant. Nothing else enters the computation: the package name, file path within the package, line number value, CWE, severity, affected version range, and any analysis travel with the VID as metadata in whatever record is kept against it, but none of them affect the resulting identifier.
 
 ## Construction
 
-Concatenate with a single `\n` (0x0A) separator and no trailing newline:
+For each sink, the construction produces a 64-character lowercase hex OID via one of two paths.
 
-    purl 0x0A gitoid
+### Function path
 
-Hash the UTF-8 bytes with SHA-256. Take the first 15 bytes. Encode as lowercase base32 (RFC 4648 alphabet `a`-`z` `2`-`7`, no padding), giving 24 characters. Insert a hyphen every four characters and prefix with `VID-1-`:
+If the file extension maps to a supported language, the source bytes are parsed with the corresponding tree-sitter grammar. Starting from the first non-whitespace column of the sink line, the implementation queries the parse tree for the smallest named descendant containing that point, then walks up to the nearest ancestor whose node type matches the per-language function-node table (below). If such an ancestor is found, its byte range `[start, end)` in the source is the *function bytes*, and the OID is
 
-    VID-1-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx
+    sha256("blob " <bytelen> 0x00 <function_bytes>)
 
-The `1` is this spec version. Any change to inputs, normalisation, hash, or encoding increments it.
+expressed as 64 lowercase hex characters. This is the construction git uses for blob object IDs and that OmniBOR standardises for content-addressed software artefacts. The hash is over the literal bytes of the function range, with no normalisation: whitespace, comments, line endings, and identifier names all enter the hash as they appear in the source.
 
-## Test vector
+### File fallback
 
-    file bytes      68 65 6c 6c 6f 20 77 6f 72 6c 64 0a    ("hello world\n", 12 bytes)
-    gitoid          0bd69098bd9b9cc5934a610ab65da429b525361147faa7b5b922919e9a23143d
-    purl            pkg:generic/example
+If the file extension is unsupported, the parser cannot produce a tree, or no ancestor matches the function-node table at the sink line, the construction falls back to hashing the whole file:
 
-    vid preimage    "pkg:generic/example\n0bd69098bd9b9cc5934a610ab65da429b525361147faa7b5b922919e9a23143d"
-    sha256          e16606c09d7bcf3d33d1d4dea777e2de1e470223f58587593f010627eaf4de2b
-    first 15 bytes  e16606c09d7bcf3d33d1d4dea777e2
+    sha256("blob " <bytelen> 0x00 <file_bytes>)
 
-    VID-1-4fta-nqe5-ppht-2m6r-2tpk-o57c
+The encoding is the same 64-character lowercase hex, and the fallback ensures the construction is defined for every sink, including module-scope statements and languages with no grammar bundled.
 
-A second vector exercising purl case normalisation. The npm type lowercases the name, so `pkg:npm/Lodash` MUST normalise to `pkg:npm/lodash` before hashing:
+### Combining sinks into a VID
 
-    purl input      pkg:npm/Lodash
-    purl normal     pkg:npm/lodash
-    gitoid          0bd69098bd9b9cc5934a610ab65da429b525361147faa7b5b922919e9a23143d
-    sha256          3067697d3e4fe14ef37d9012a9f71e2631543c3755a62ca763efa52133656153
+Given N OIDs from N sinks, the implementation sorts the OIDs lexicographically by byte (identical to ASCII sort, since OIDs are lowercase hex), removes consecutive duplicates so that two sinks resolving to the same function or to identical bytes across files contribute one OID rather than several, and joins the resulting OIDs with `\n` (0x0A) as a single ASCII string. That string is the *preimage*. The VID is then
 
-    VID-1-gbtw-s7j6-j7qu-5435-sajk-t5y6
+    sha256(preimage)[:15]
+
+encoded in lowercase base32 (RFC 4648 alphabet `a`-`z`, `2`-`7`, no padding) producing 24 characters, broken into six groups of four with `-` separators, and prefixed with `VID-`. The single-sink case falls out as n=1: the preimage is just the one OID as a 64-character hex string, and the resulting VID identifies that one sink.
+
+## Function-boundary detection
+
+The implementation locates the enclosing function with tree-sitter. The exact procedure:
+
+1. Extract the file's basename and look up the extension in this table:
+
+   | Extension | Language |
+   |---|---|
+   | `.js`, `.jsx`, `.mjs`, `.cjs` | javascript |
+   | `.ts`, `.d.ts` | typescript |
+   | `.tsx` | typescript (TSX variant) |
+   | `.rb` | ruby |
+   | `.py` | python |
+   | `.go` | go |
+   | `.rs` | rust |
+   | `.java` | java |
+   | `.c`, `.h` | c |
+   | `.cpp`, `.cc`, `.cxx`, `.hpp` | cpp |
+   | `.php` | php |
+
+   Any other extension means no language is detected and the file fallback applies immediately.
+
+2. Parse the source bytes with the language grammar.
+
+3. Compute the column of the first non-whitespace character on the sink line. This handles languages where significant indentation places the tree-sitter cursor outside the indented block when querying at column zero.
+
+4. Query the parse tree for the smallest named descendant at point `(sink_line - 1, first_non_whitespace_column)`.
+
+5. Walk up the tree through `Parent()` until either the root is reached (no match: fall back to file) or a node whose type is in the function-node table for the detected language is reached. The first matching ancestor wins, and its byte range is the function bytes.
+
+The grammar bindings used are the ones distributed under github.com/tree-sitter/tree-sitter-LANG, pinned via Go module versions in this repository's go.mod. A grammar bump is a spec bump: if a new grammar version reports different boundaries for any function in the test corpus, the spec version increments and old VIDs become uncomputable by tools on the new grammar.
+
+## Function-node table
+
+For each language, the construction treats an ancestor as a function if its tree-sitter node type appears in this set:
+
+| Language | Function node types |
+|---|---|
+| javascript | `function_declaration`, `function_expression`, `generator_function_declaration`, `arrow_function`, `method_definition` |
+| typescript | `function_declaration`, `function_expression`, `generator_function_declaration`, `arrow_function`, `method_definition` |
+| ruby | `method`, `singleton_method` |
+| python | `function_definition` |
+| go | `function_declaration`, `method_declaration` |
+| rust | `function_item` |
+| java | `method_declaration`, `constructor_declaration` |
+| c | `function_definition` |
+| cpp | `function_definition` |
+| php | `function_definition`, `method_declaration` |
+
+Languages with closures, lambdas, or anonymous functions can have multiple matching ancestors; the innermost match wins because tree-sitter ancestor walking returns the closest first.
+
+## Test vectors
+
+The vectors below are computed by the reference implementation and verified by the test suite.
+
+### File-fallback vector
+
+Input bytes: `hello world\n` (12 bytes, `0x68 0x65 0x6c 0x6c 0x6f 0x20 0x77 0x6f 0x72 0x6c 0x64 0x0a`).
+
+```
+gitoid    = sha256("blob 12\x00hello world\n")
+          = 0bd69098bd9b9cc5934a610ab65da429b525361147faa7b5b922919e9a23143d
+preimage  = gitoid                  (single sink, file fallback)
+sha256    = e16606c09d7bcf3d33d1d4dea777e2c2...
+truncate  = first 15 bytes
+encode    = ernd c2qt gs7l lkhg 32lv y4li
+VID       = VID-ernd-c2qt-gs7l-lkhg-32lv-y4li
+```
+
+### Function-bytes vector (minimist 1.2.2 `setKey`)
+
+The minimist npm package at version 1.2.2 contains the function `setKey` in `index.js` at line 69. Pointing any sink line in that function (e.g., line 73) at that file produces the golden VID recorded for [examples/GHSA-vh95-rmgr-6w4m](examples/GHSA-vh95-rmgr-6w4m):
+
+```
+function bytes = src[node.StartByte:node.EndByte] for the function_declaration node spanning lines 69-87
+funcoid        = 0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
+preimage       = funcoid                  (single sink, function mode)
+VID            = VID-yssz-i3ln-4ob6-z2fx-3rpt-jve3
+```
+
+### Multi-sink vector
+
+Two sinks in two different functions of two different files, each resolving in function mode to a distinct funcoid. With
+
+```
+oid_a = 0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
+oid_b = 328974138b111b60695089a2962314cfc99540f91660d7313bc6affbb2698632
+```
+
+the sorted, deduped, newline-joined preimage is
+
+```
+0c875fcdffc082ece536ffc1a1d67c81fd7d8dfa216e2b4225b8b55f741d6744
+328974138b111b60695089a2962314cfc99540f91660d7313bc6affbb2698632
+```
+
+since `0c...` sorts before `32...`, and the resulting VID is `VID-u4i5-mkeq-3wf7-xnaj-wqwc-yphg`.
 
 ## Properties
 
-The gitoid pins a VID to exact file content. Editing the file produces a different VID. Renaming or moving the file does not, because the gitoid depends only on bytes. The same file appearing unchanged across several released versions yields one VID, which is why the purl carries no version.
+### Stability and convergence
 
-The 120-bit truncation gives second-preimage resistance of roughly 2^120. Accidental collision is not a practical concern at any plausible number of identifiers.
+Two parties holding the same function bytes compute the same VID. The construction has no inputs the parties need to agree on beyond the bytes themselves, and the set of purls covering any given piece of code is open and unknowable, so the purl is not part of the hash.
 
-A VID never expires. If a later release reintroduces the same vulnerable bytes after a fix, the original VID matches the regression. The surrounding record tracks which versions are fixed.
+The VID is stable across file renames and moves (only the bytes enter the hash), unrelated edits elsewhere in the file (the function path hashes only the function range), changes to per-package metadata (not an input), and changes to which package the file ships in (the same vulnerable function copied into many packages produces one VID matching every copy).
 
-Anyone can compute a VID for any file in any package whether or not a vulnerability is present. The identifier names the location of a claim and says nothing about whether the claim is true.
+The VID changes when any byte inside the function range changes, including whitespace, comments, renamed locals, reformatter passes, line-ending changes, or `git autocrlf` translations on cross-platform checkouts. It also changes when the function is moved to a file in a language with no bundled grammar, because the construction would shift from the function path to the file fallback and hash a different range of bytes. The pinned tree-sitter grammar version can in principle change the byte range it reports for a given function, which would also change the VID, though boundary detection is the most stable property of these grammars in practice.
 
-Publishing a VID does not reveal its inputs, but the preimage space is small: someone who can guess a plausible package and file can hash them and check for a match. Given a claimed preimage, anyone can recompute the VID and verify it.
+### Collision resistance
 
-File selection is the one place this scheme depends on shared convention. Two researchers who choose different files for the same underlying vulnerability will compute different VIDs. This is accepted: the VIDs are linked as aliases in the surrounding record, the same way advisory databases already link CVE, GHSA, and vendor identifiers for one issue.
+Truncating the SHA-256 digest to 120 bits leaves a collision-finding work factor of about 2^60 and a preimage-finding work factor of about 2^120 against arbitrary inputs. Accidental collision between unrelated functions is not a practical concern at any plausible corpus size. Collision against a *known* target is cheaper: someone who suspects which package and version a VID refers to can hash every function in that package and check matches, and for popular libraries the candidate space is small and fully public. A published VID is therefore closer to a pointer than a sealed envelope, which is acknowledged and intentional.
 
-## Status
+### What the construction does not do
 
-Draft. Before this is stable: a reference purl normaliser must be named and pinned; more test vectors are needed covering each purl type's case rules; a reference CLI should exist; and a record format for what travels alongside a VID (CWE, severity, affected versions, aliases) should be sketched, with the OSV schema's `aliases` field as the likely target.
+The construction names code rather than packages: the same bytes copied into many packages produce one VID, and the mapping from VID to affected packages lives in whatever record is kept against it. It names code rather than vulnerabilities: the VID identifies code being claimed about, with the truth or severity of the claim coming from a different layer. No database is required: aliases between VIDs (different sinks for one bug, different artefact versions of one file) sit in whatever record a consumer chooses to keep, not in a central registry. The model assumes good-faith participants and does not defend against adversaries trying to mint colliding identifiers or precompute VIDs over public code to claim credit. Byte normalisation is not performed; light normalisation (LF-only line endings, trimmed trailing whitespace) and AST-based hashing are candidate revisions if real-world reformat churn turns out to be a significant problem, but the current default is literal bytes.
+
+## Reference implementation
+
+The reference implementation in this repository is a Go library and CLI. Library entry points:
+
+```
+vid.Gitoid(b []byte) string
+vid.Encode(preimage string) string
+vid.EnclosingFunction(src []byte, filename string, line int) (fn []byte, lang string, ok bool)
+vid.Compute(sinks []vid.Sink) vid.Result
+```
+
+`Compute` is the high-level entry point used by the CLI and by the test runner. The CLI takes one or more `file:line` arguments and prints the VID:
+
+    $ vid lib/query.js:42
+    VID-...
+
+    $ vid lib/query.js:42 lib/audit.js:88
+    VID-...                        # multi-sink combined VID
+
+Setting `VID_DEBUG=1` prints the preimage and per-sink (mode, language, OID) to stderr alongside the VID, which is what test vectors are confirmed against. The test corpus lives in [examples/](examples/), with each fixture as a directory containing a vulnerable file, a fixed file, a perturbation file (the vulnerable file with edits outside the sink function), and an `advisory.yaml` manifest with the golden VID. The test runner walks `examples/*/advisory.yaml`, computes the VID for each sink, and asserts that the sink VID matches the golden, that the fixed-file VID differs from the vulnerable VID, and that the perturbed-file VID equals the vulnerable VID.

@@ -1,0 +1,34 @@
+advisory: GHSA-9wx4-h78v-vm56
+cve: CVE-2024-35195
+purl: pkg:pypi/requests
+cwe: CWE-670
+summary: TLS verification state persists across reused connections in Session because HTTPAdapter.send did not pass verify into the connection lookup
+
+sink:
+  file: vuln.py
+  line: 434
+
+fixed:
+  file: fixed.py
+  line: 512
+
+perturbation:
+  file: perturbed.py
+  line: 438
+  note: comment header prepended and unrelated helper appended; HTTPAdapter.send body unchanged
+
+expected:
+  vid: VID-k32d-3xex-rin7-apff-4s47-oj7i
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-9wx4-h78v-vm56
+  - https://nvd.nist.gov/vuln/detail/CVE-2024-35195
+  - https://github.com/psf/requests/commit/a58d7f2ffb4d00b46dca2d70a3932a0b37e22fac
+  - https://github.com/psf/requests/pull/6655
+
+provenance:
+  vuln_version: 2.31.0
+  fixed_version: 2.32.0
+  vuln_source: pip download requests==2.31.0 (src/requests/adapters.py from wheel)
+  fixed_source: pip download requests==2.32.0 (src/requests/adapters.py from wheel)

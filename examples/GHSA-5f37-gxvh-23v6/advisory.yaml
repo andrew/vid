@@ -1,0 +1,33 @@
+advisory: GHSA-5f37-gxvh-23v6
+cve: CVE-2016-10033
+purl: pkg:packagist/phpmailer/phpmailer
+cwe: CWE-94
+summary: PHPMailer::mailSend passed unsanitised Sender into the mail() shell command, allowing remote code execution via crafted email addresses
+
+sink:
+  file: vuln.php
+  line: 1434
+
+fixed:
+  file: fixed.php
+  line: 1435
+
+perturbation:
+  file: perturbed.php
+  line: 1437
+  note: comment header prepended (replacing the opening php tag) and unrelated helper appended; mailSend body unchanged
+
+expected:
+  vid: VID-pk4n-kafd-xvdi-somh-hppq-hnbg
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-5f37-gxvh-23v6
+  - https://nvd.nist.gov/vuln/detail/CVE-2016-10033
+  - https://github.com/PHPMailer/PHPMailer/wiki/About-the-CVE-2016-10033-and-CVE-2016-10045-vulnerabilities
+
+provenance:
+  vuln_version: 5.2.17
+  fixed_version: 5.2.18
+  vuln_source: github.com/PHPMailer/PHPMailer raw v5.2.17 class.phpmailer.php
+  fixed_source: github.com/PHPMailer/PHPMailer raw v5.2.18 class.phpmailer.php

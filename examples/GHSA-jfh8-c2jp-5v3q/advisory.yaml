@@ -1,0 +1,33 @@
+advisory: GHSA-jfh8-c2jp-5v3q
+cve: CVE-2021-44228
+purl: pkg:maven/org.apache.logging.log4j/log4j-core
+cwe: CWE-502
+summary: JndiManager.lookup performed unrestricted JNDI lookups against user-controlled input (Log4Shell)
+
+sink:
+  file: vuln.java
+  line: 171
+
+fixed:
+  file: fixed.java
+  line: 209
+
+perturbation:
+  file: perturbed.java
+  line: 175
+  note: comment header prepended and unrelated class appended; JndiManager.lookup body unchanged
+
+expected:
+  vid: VID-kcuq-5wo7-xx3y-kjyu-zzsy-ehtn
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-jfh8-c2jp-5v3q
+  - https://nvd.nist.gov/vuln/detail/CVE-2021-44228
+  - https://logging.apache.org/log4j/2.x/security.html
+
+provenance:
+  vuln_version: 2.14.1
+  fixed_version: 2.15.0
+  vuln_source: github.com/apache/logging-log4j2 raw rel/2.14.1 log4j-core/src/main/java/org/apache/logging/log4j/core/net/JndiManager.java
+  fixed_source: github.com/apache/logging-log4j2 raw rel/2.15.0 log4j-core/src/main/java/org/apache/logging/log4j/core/net/JndiManager.java

@@ -1,0 +1,33 @@
+advisory: GHSA-2gh3-rmm4-6rq5
+cve: CVE-2025-53605
+purl: pkg:cargo/protobuf
+cwe: CWE-674
+summary: Uncontrolled recursion in CodedInputStream::skip_group when parsing untrusted protobuf data causes stack overflow
+
+sink:
+  file: _vuln.rs
+  line: 513
+
+fixed:
+  file: _fixed.rs
+  line: 513
+
+perturbation:
+  file: _perturbed.rs
+  line: 517
+  note: comment header prepended and unrelated helper appended; skip_group body unchanged
+
+expected:
+  vid: VID-njr5-spjn-ans2-64pz-tlgo-2xjw
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-2gh3-rmm4-6rq5
+  - https://nvd.nist.gov/vuln/detail/CVE-2025-53605
+  - https://rustsec.org/advisories/RUSTSEC-2024-0437.html
+
+provenance:
+  vuln_version: 3.4.0
+  fixed_version: 3.7.2
+  vuln_source: github.com/stepancheg/rust-protobuf raw v3.4.0 protobuf/src/coded_input_stream/mod.rs
+  fixed_source: github.com/stepancheg/rust-protobuf raw v3.7.2 protobuf/src/coded_input_stream/mod.rs

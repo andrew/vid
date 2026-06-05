@@ -1,0 +1,33 @@
+advisory: GHSA-j6gc-792m-qgm2
+cve: CVE-2023-22796
+purl: pkg:gem/activesupport
+cwe: CWE-1333
+summary: ReDoS via catastrophic backtracking in ActiveSupport::Inflector.underscore (and String#underscore, String#titleize, etc.)
+
+sink:
+  file: vuln.rb
+  line: 100
+
+fixed:
+  file: fixed.rb
+  line: 100
+
+perturbation:
+  file: perturbed.rb
+  line: 104
+  note: comment header prepended and unrelated module appended; underscore body unchanged
+
+expected:
+  vid: VID-7l5i-qwxy-6f4c-ycrb-baf4-xz5u
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-j6gc-792m-qgm2
+  - https://nvd.nist.gov/vuln/detail/CVE-2023-22796
+  - https://github.com/rails/rails/commit/2164d4f6a1bde74b911fe9ba3c8df1b5bf345bf8
+
+provenance:
+  vuln_version: 7.0.4
+  fixed_version: 7.0.4.1
+  vuln_source: gem fetch activesupport --version=7.0.4 (lib/active_support/inflector/methods.rb verbatim)
+  fixed_source: gem fetch activesupport --version=7.0.4.1 (lib/active_support/inflector/methods.rb verbatim)

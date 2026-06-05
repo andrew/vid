@@ -1,0 +1,33 @@
+advisory: GHSA-vh95-rmgr-6w4m
+cve: CVE-2020-7598
+purl: pkg:npm/minimist
+cwe: CWE-1321
+summary: Prototype pollution in minimist via setKey when parsing nested keys
+
+sink:
+  file: vuln.js
+  line: 73
+
+fixed:
+  file: fixed.js
+  line: 73
+
+perturbation:
+  file: perturbed.js
+  line: 76
+  note: comment header prepended and unrelated helper appended; setKey bytes unchanged
+
+expected:
+  vid: VID-yssz-i3ln-4ob6-z2fx-3rpt-jve3
+  mode: function
+
+refs:
+  - https://github.com/advisories/GHSA-vh95-rmgr-6w4m
+  - https://nvd.nist.gov/vuln/detail/CVE-2020-7598
+  - https://github.com/minimistjs/minimist/commit/63e7ed05aa4b1889ec2f3b196426db4500cbda94
+
+provenance:
+  vuln_version: 1.2.2
+  fixed_version: 1.2.3
+  vuln_source: npm pack minimist@1.2.2 (index.js verbatim)
+  fixed_source: npm pack minimist@1.2.3 (index.js verbatim)
