@@ -106,3 +106,7 @@ The construction in [SPEC.md](SPEC.md) is a draft, still settling but not stable
 Multi-sink is the place this convergence story is weakest: the moment a vulnerability spans more than one function the parties have to agree on the set of sinks before they converge, which puts them back in the coordination problem the single-function case escapes. The library combines multiple sinks by sorting their OIDs, deduplicating, and joining with `\n` in the preimage, and the two multi-sink fixtures verify that the combined VID is stable across edits outside any of the sink functions.
 
 The most impactful open question is whether the identifier needs a version prefix. It is currently just `VID-`, dropped on the grounds that nothing has shipped, but each subsequent breaking change to the construction reopens that decision.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
